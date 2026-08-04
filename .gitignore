@@ -1,4 +1,28 @@
-node_modules
+# Node modules
+node_modules/
+**/node_modules/
+
+# npm cache
+.npm-cache/
+.npm/
+
+# Environment variables
 .env
-dist
-coverage
+.env.*
+
+# Build folders
+dist/
+build/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Coverage
+coverage/
