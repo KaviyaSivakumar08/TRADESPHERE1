@@ -17,9 +17,30 @@ export const listCrops = async (req, res) => {
     status: 'active',
   };
 
-  if (q) {
-    filter.$text = { $search: q };
+  // ================= SEARCH =================
+  if (q && q.trim() !== '') {
+    filter.$or = [
+      {
+        name: {
+          $regex: q.trim(),
+          $options: 'i',
+        },
+      },
+      {
+        description: {
+          $regex: q.trim(),
+          $options: 'i',
+        },
+      },
+      {
+        category: {
+          $regex: q.trim(),
+          $options: 'i',
+        },
+      },
+    ];
   }
+  // ==========================================
 
   if (category) {
     filter.category = category;
@@ -195,8 +216,8 @@ export const addReview = async (req, res) => {
   ]);
 
   crop.rating = {
-    average: stats[0].average,
-    count: stats[0].count,
+    average: stats[0]?.average || 0,
+    count: stats[0]?.count || 0,
   };
 
   await crop.save();
