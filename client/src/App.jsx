@@ -31,16 +31,11 @@ export default function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
-
         <Route path="/marketplace" element={<Marketplace />} />
-
         <Route path="/crops/:id" element={<CropDetails />} />
-
         <Route path="/login" element={<Auth />} />
-
         <Route path="/cart" element={<Cart />} />
 
-        {/* Every logged-in user can checkout. */}
         <Route
           path="/checkout"
           element={
@@ -50,7 +45,6 @@ export default function App() {
           }
         />
 
-        {/* Every logged-in user has one dashboard. */}
         <Route
           path="/dashboard"
           element={
@@ -60,9 +54,17 @@ export default function App() {
           }
         />
 
-        {/* Every logged-in user can add a product for sale. */}
         <Route
           path="/farmer/crops/new"
+          element={
+            <Guard>
+              <CropForm />
+            </Guard>
+          }
+        />
+
+        <Route
+          path="/farmer/crops/:id/edit"
           element={
             <Guard>
               <CropForm />
