@@ -34,9 +34,7 @@ export default function Auth() {
         {mode === 'login' ? 'Welcome back' : 'Join TradeSphere'}
       </h1>
 
-      <p className="mt-2 text-sm text-slate-500">
-        Every account can buy crops and sell crops.
-      </p>
+      
 
       <form className="mt-5 space-y-4" onSubmit={submit}>
         {mode === 'register' && (

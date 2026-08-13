@@ -131,9 +131,28 @@ export default function Dashboard() {
               Order #{order._id.slice(-6)}
             </h3>
 
-            <p className="text-sm text-slate-500">
-              Buyer: {order.buyer?.name} · {order.buyer?.phone}
-            </p>
+            <div className="mt-1 text-sm text-slate-600">
+  <p>
+    <b>Buyer:</b> {order.buyer?.name} · {order.buyer?.phone}
+  </p>
+
+  <p className="mt-2">
+    <b>Delivery address:</b>
+  </p>
+
+  <p>
+    {order.shippingAddress?.line1}
+  </p>
+
+  <p>
+    {order.shippingAddress?.city}, {order.shippingAddress?.state} -{' '}
+    {order.shippingAddress?.postalCode}
+  </p>
+
+  <p>
+    {order.shippingAddress?.country || 'India'}
+  </p>
+</div>
 
             <div className="mt-3 space-y-4 border-t pt-3">
               {order.items
