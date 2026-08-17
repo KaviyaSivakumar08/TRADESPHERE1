@@ -1,6 +1,8 @@
 import Crop from '../models/Crop.js';
 import Review from '../models/Review.js';
 
+// Shows active and unavailable products.
+// The frontend decides whether the buyer can add it to cart.
 export const listCrops = async (req, res) => {
   const {
     q,
@@ -13,11 +15,8 @@ export const listCrops = async (req, res) => {
     sort = 'newest',
   } = req.query;
 
-  const filter = {
-    status: 'active',
-  };
+  const filter = {};
 
-  // ================= SEARCH =================
   if (q && q.trim() !== '') {
     filter.$or = [
       {
@@ -40,7 +39,6 @@ export const listCrops = async (req, res) => {
       },
     ];
   }
-  // ==========================================
 
   if (category) {
     filter.category = category;
@@ -64,12 +62,15 @@ export const listCrops = async (req, res) => {
       price_desc: { price: -1 },
     }[sort] || { createdAt: -1 };
 
+  const currentPage = Number(page);
+  const pageLimit = Number(limit);
+
   const [items, total] = await Promise.all([
     Crop.find(filter)
       .populate('farmer', 'name farmName avatar')
       .sort(order)
-      .skip((page - 1) * limit)
-      .limit(Number(limit)),
+      .skip((currentPage - 1) * pageLimit)
+      .limit(pageLimit),
 
     Crop.countDocuments(filter),
   ]);
@@ -77,20 +78,22 @@ export const listCrops = async (req, res) => {
   res.json({
     items,
     total,
-    page: Number(page),
-    pages: Math.ceil(total / limit),
+    page: currentPage,
+    pages: Math.ceil(total / pageLimit),
   });
 };
 
+// Shows product details, including unavailable products.
+// The buyer still cannot purchase an unavailable product.
 export const getCrop = async (req, res) => {
   const crop = await Crop.findById(req.params.id).populate(
     'farmer',
-    'name farmName avatar phone'
+    'name farmName avatar phone',
   );
 
   if (!crop) {
     return res.status(404).json({
-      message: 'Crop not found',
+      message: 'Product not found',
     });
   }
 
@@ -100,16 +103,14 @@ export const getCrop = async (req, res) => {
     .populate('buyer', 'name avatar')
     .sort({ createdAt: -1 });
 
-  res.json({
-    crop,
-    reviews,
-  });
+  res.json({ crop, reviews });
 };
 
 export const createCrop = async (req, res) => {
   const crop = await Crop.create({
     ...req.body,
     farmer: req.user._id,
+    status: 'active',
   });
 
   res.status(201).json({ crop });
@@ -120,7 +121,7 @@ export const updateCrop = async (req, res) => {
 
   if (!crop) {
     return res.status(404).json({
-      message: 'Crop not found',
+      message: 'Product not found',
     });
   }
 
@@ -129,7 +130,7 @@ export const updateCrop = async (req, res) => {
     req.user.role !== 'admin'
   ) {
     return res.status(403).json({
-      message: 'Not your listing',
+      message: 'You can edit only your own product',
     });
   }
 
@@ -145,7 +146,7 @@ export const deleteCrop = async (req, res) => {
 
   if (!crop) {
     return res.status(404).json({
-      message: 'Crop not found',
+      message: 'Product not found',
     });
   }
 
@@ -154,7 +155,7 @@ export const deleteCrop = async (req, res) => {
     req.user.role !== 'admin'
   ) {
     return res.status(403).json({
-      message: 'Not your listing',
+      message: 'You can delete only your own product',
     });
   }
 
@@ -176,7 +177,7 @@ export const addReview = async (req, res) => {
 
   if (!crop) {
     return res.status(404).json({
-      message: 'Crop not found',
+      message: 'Product not found',
     });
   }
 
@@ -193,7 +194,7 @@ export const addReview = async (req, res) => {
       upsert: true,
       new: true,
       runValidators: true,
-    }
+    },
   );
 
   const stats = await Review.aggregate([

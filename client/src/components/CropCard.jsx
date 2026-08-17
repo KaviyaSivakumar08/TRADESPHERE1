@@ -1,23 +1,42 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Heart } from 'lucide-react';
+import { Heart, MapPin } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
 export default function CropCard({ crop }) {
   const { add } = useCart();
 
+  const isAvailable =
+    crop.status === 'active' && Number(crop.quantity) > 0;
+
+  const handleAddToCart = () => {
+    if (!isAvailable) return;
+
+    add(crop);
+  };
+
   return (
     <article className="card flex flex-col overflow-hidden p-0">
-      <img
-        className="h-44 w-full object-cover"
-        src={
-          crop.images?.[0] ||
-          'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80'
-        }
-        alt={crop.name}
-      />
+      <div className="relative">
+        <img
+          className="h-44 w-full object-cover"
+          src={
+            crop.images?.[0] ||
+            'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80'
+          }
+          alt={crop.name}
+        />
+
+        <span
+          className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-bold text-white ${
+            isAvailable ? 'bg-green-600' : 'bg-red-600'
+          }`}
+        >
+          {isAvailable ? 'Available' : 'Unavailable'}
+        </span>
+      </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <div className="mb-1 flex items-start justify-between">
+        <div className="mb-1 flex items-start justify-between gap-3">
           <Link
             className="text-lg font-bold hover:text-forest"
             to={`/crops/${crop._id}`}
@@ -25,16 +44,22 @@ export default function CropCard({ crop }) {
             {crop.name}
           </Link>
 
-          <Heart size={18} className="text-slate-400" />
+          <Heart size={18} className="shrink-0 text-slate-400" />
         </div>
 
-        <p className="mb-3 text-sm text-slate-500">
-          {crop.farmer?.farmName || crop.farmer?.name || 'Local farmer'} ·{' '}
-          <MapPin className="inline" size={13} />
+        <p className="mb-2 text-sm text-slate-500">
+          {crop.farmer?.farmName ||
+            crop.farmer?.name ||
+            'Local farmer'}{' '}
+          · <MapPin className="inline" size={13} />
           {crop.location?.district || 'India'}
         </p>
 
-        <div className="mt-auto flex items-center justify-between">
+        <p className="mb-3 text-sm text-slate-500">
+          Stock: {crop.quantity} {crop.unit}
+        </p>
+
+        <div className="mt-auto flex items-center justify-between gap-3">
           <span className="font-bold text-forest">
             ₹{crop.price}
             <small className="font-normal text-slate-500">
@@ -43,11 +68,15 @@ export default function CropCard({ crop }) {
           </span>
 
           <button
-            className="btn-primary text-sm"
-            disabled={!crop.quantity}
-            onClick={() => add(crop)}
+            className={`btn text-sm ${
+              isAvailable
+                ? 'bg-forest text-white hover:bg-leaf'
+                : 'cursor-not-allowed bg-slate-200 text-slate-500'
+            }`}
+            disabled={!isAvailable}
+            onClick={handleAddToCart}
           >
-            {crop.quantity ? 'Add' : 'Sold out'}
+            {isAvailable ? 'Add to Cart' : 'Not Available'}
           </button>
         </div>
       </div>

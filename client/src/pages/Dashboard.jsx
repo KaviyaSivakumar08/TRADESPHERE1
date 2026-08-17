@@ -17,10 +17,11 @@ export default function Dashboard() {
         api.get('/crops/mine'),
       ]);
 
-      setOrders(ordersResponse.data.items);
-      setMyProducts(cropsResponse.data.items);
+      setOrders(ordersResponse.data.items || []);
+      setMyProducts(cropsResponse.data.items || []);
     } catch (error) {
       console.error(error);
+
       setMessage(
         error.response?.data?.message || 'Could not load dashboard.',
       );
@@ -33,13 +34,54 @@ export default function Dashboard() {
 
   const changeSellerStatus = async (orderId, status) => {
     try {
-      await api.patch(`/orders/${orderId}/seller-status`, { status });
+      await api.patch(`/orders/${orderId}/seller-status`, {
+        status,
+      });
 
-      setMessage(`Product order ${status}.`);
+      setMessage(`Order updated: ${status}.`);
       loadDashboard();
     } catch (error) {
       setMessage(
         error.response?.data?.message || 'Could not update order.',
+      );
+    }
+  };
+
+  const changeProductAvailability = async (productId, status) => {
+    try {
+      await api.patch(`/crops/${productId}`, {
+        status,
+      });
+
+      setMessage(
+        status === 'active'
+          ? 'Product is available for buyers now.'
+          : 'Product is now unavailable for buyers.',
+      );
+
+      loadDashboard();
+    } catch (error) {
+      setMessage(
+        error.response?.data?.message || 'Could not update product.',
+      );
+    }
+  };
+
+  const deleteProduct = async (productId, productName) => {
+    const shouldDelete = window.confirm(
+      `Delete "${productName}" permanently?`,
+    );
+
+    if (!shouldDelete) return;
+
+    try {
+      await api.delete(`/crops/${productId}`);
+
+      setMessage('Product deleted successfully.');
+      loadDashboard();
+    } catch (error) {
+      setMessage(
+        error.response?.data?.message || 'Could not delete product.',
       );
     }
   };
@@ -50,12 +92,16 @@ export default function Dashboard() {
     return farmerId?.toString() === user?.id?.toString();
   };
 
-  const buyingOrders = orders.filter(
-    (order) => order.buyer?._id?.toString() === user?.id?.toString(),
-  );
+  const isMyOrder = (order) => {
+    const buyerId = order.buyer?._id || order.buyer;
+
+    return buyerId?.toString() === user?.id?.toString();
+  };
+
+  const buyingOrders = orders.filter((order) => isMyOrder(order));
 
   const sellingOrders = orders.filter((order) =>
-    order.items.some((item) => isMyProduct(item)),
+    order.items?.some((item) => isMyProduct(item)),
   );
 
   return (
@@ -88,7 +134,7 @@ export default function Dashboard() {
         </p>
       )}
 
-      {/* Your listed products: edit price and quantity here */}
+      {/* PRODUCTS LISTED BY THIS USER */}
       <h2 className="mt-10 text-2xl font-bold">My Products</h2>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -103,22 +149,70 @@ export default function Dashboard() {
               alt={product.name}
             />
 
-            <h3 className="text-lg font-bold">{product.name}</h3>
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-lg font-bold">{product.name}</h3>
+
+              <span
+                className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                  product.status === 'active'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-700'
+                }`}
+              >
+                {product.status === 'active'
+                  ? 'Available'
+                  : 'Unavailable'}
+              </span>
+            </div>
 
             <p className="mt-1 text-forest">
               ₹{product.price} / {product.unit}
             </p>
 
             <p className="text-sm text-slate-500">
-              Available: {product.quantity} {product.unit}
+              Stock: {product.quantity} {product.unit}
             </p>
 
-            <Link
-              className="btn-outline mt-4 w-full"
-              to={`/farmer/crops/${product._id}/edit`}
-            >
-              Edit Price / Quantity
-            </Link>
+            <div className="mt-4 grid gap-2">
+              <Link
+                className="btn-outline w-full"
+                to={`/farmer/crops/${product._id}/edit`}
+              >
+                Edit Price / Quantity
+              </Link>
+
+              {product.status === 'active' ? (
+                <button
+                  className="btn-outline w-full border-orange-500 text-orange-600 hover:bg-orange-500"
+                  onClick={() =>
+                    changeProductAvailability(
+                      product._id,
+                      'archived',
+                    )
+                  }
+                >
+                  Mark Unavailable
+                </button>
+              ) : (
+                <button
+                  className="btn-primary w-full"
+                  onClick={() =>
+                    changeProductAvailability(product._id, 'active')
+                  }
+                >
+                  Make Available
+                </button>
+              )}
+
+              <button
+                className="btn w-full border border-red-500 text-red-600 hover:bg-red-500 hover:text-white"
+                onClick={() =>
+                  deleteProduct(product._id, product.name)
+                }
+              >
+                Delete Product
+              </button>
+            </div>
           </div>
         ))}
 
@@ -129,15 +223,18 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* PRODUCTS BOUGHT BY THIS USER */}
       <h2 className="mt-10 text-2xl font-bold">Products I Bought</h2>
 
       <div className="mt-4 space-y-4">
         {buyingOrders.map((order) => (
           <div className="card" key={order._id}>
-            <h3 className="font-bold">Order #{order._id.slice(-6)}</h3>
+            <h3 className="font-bold">
+              Order #{order._id.slice(-6)}
+            </h3>
 
             <div className="mt-3 space-y-3 border-t pt-3">
-              {order.items.map((item, index) => (
+              {order.items?.map((item, index) => (
                 <div key={`${item.crop}-${index}`}>
                   <p className="font-semibold">{item.name}</p>
 
@@ -153,7 +250,7 @@ export default function Dashboard() {
                   </p>
 
                   <p className="font-semibold capitalize text-forest">
-                    Seller status: {item.sellerStatus}
+                    Seller status: {item.sellerStatus || 'pending'}
                   </p>
                 </div>
               ))}
@@ -168,12 +265,15 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* PRODUCTS SOLD BY THIS USER */}
       <h2 className="mt-10 text-2xl font-bold">Products I Sold</h2>
 
       <div className="mt-4 space-y-4">
         {sellingOrders.map((order) => (
           <div className="card" key={order._id}>
-            <h3 className="font-bold">Order #{order._id.slice(-6)}</h3>
+            <h3 className="font-bold">
+              Order #{order._id.slice(-6)}
+            </h3>
 
             <div className="mt-2 text-sm text-slate-600">
               <p>
@@ -197,7 +297,7 @@ export default function Dashboard() {
 
             <div className="mt-4 space-y-4 border-t pt-3">
               {order.items
-                .filter((item) => isMyProduct(item))
+                ?.filter((item) => isMyProduct(item))
                 .map((item, index) => (
                   <div
                     className="flex flex-wrap items-center justify-between gap-4"
@@ -211,7 +311,7 @@ export default function Dashboard() {
                       </p>
 
                       <p className="font-semibold capitalize text-forest">
-                        Status: {item.sellerStatus}
+                        Status: {item.sellerStatus || 'pending'}
                       </p>
                     </div>
 
@@ -221,7 +321,10 @@ export default function Dashboard() {
                           <button
                             className="btn-primary"
                             onClick={() =>
-                              changeSellerStatus(order._id, 'approved')
+                              changeSellerStatus(
+                                order._id,
+                                'approved',
+                              )
                             }
                           >
                             Approve
@@ -230,7 +333,10 @@ export default function Dashboard() {
                           <button
                             className="btn-outline"
                             onClick={() =>
-                              changeSellerStatus(order._id, 'rejected')
+                              changeSellerStatus(
+                                order._id,
+                                'rejected',
+                              )
                             }
                           >
                             Reject
@@ -242,7 +348,10 @@ export default function Dashboard() {
                         <button
                           className="btn-primary"
                           onClick={() =>
-                            changeSellerStatus(order._id, 'processing')
+                            changeSellerStatus(
+                              order._id,
+                              'processing',
+                            )
                           }
                         >
                           Processing
@@ -264,7 +373,10 @@ export default function Dashboard() {
                         <button
                           className="btn-primary"
                           onClick={() =>
-                            changeSellerStatus(order._id, 'delivered')
+                            changeSellerStatus(
+                              order._id,
+                              'delivered',
+                            )
                           }
                         >
                           Mark Delivered
