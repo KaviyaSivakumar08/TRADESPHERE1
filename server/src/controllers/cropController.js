@@ -1,8 +1,7 @@
 import Crop from '../models/Crop.js';
 import Review from '../models/Review.js';
+import Order from '../models/Order.js';
 
-// Shows active and unavailable products.
-// The frontend decides whether the buyer can add it to cart.
 export const listCrops = async (req, res) => {
   const {
     q,
@@ -15,6 +14,7 @@ export const listCrops = async (req, res) => {
     sort = 'newest',
   } = req.query;
 
+  // Show both available and unavailable products in marketplace.
   const filter = {};
 
   if (q && q.trim() !== '') {
@@ -83,8 +83,6 @@ export const listCrops = async (req, res) => {
   });
 };
 
-// Shows product details, including unavailable products.
-// The buyer still cannot purchase an unavailable product.
 export const getCrop = async (req, res) => {
   const crop = await Crop.findById(req.params.id).populate(
     'farmer',
@@ -103,7 +101,10 @@ export const getCrop = async (req, res) => {
     .populate('buyer', 'name avatar')
     .sort({ createdAt: -1 });
 
-  res.json({ crop, reviews });
+  res.json({
+    crop,
+    reviews,
+  });
 };
 
 export const createCrop = async (req, res) => {
@@ -113,7 +114,9 @@ export const createCrop = async (req, res) => {
     status: 'active',
   });
 
-  res.status(201).json({ crop });
+  res.status(201).json({
+    crop,
+  });
 };
 
 export const updateCrop = async (req, res) => {
@@ -138,7 +141,9 @@ export const updateCrop = async (req, res) => {
 
   await crop.save();
 
-  res.json({ crop });
+  res.json({
+    crop,
+  });
 };
 
 export const deleteCrop = async (req, res) => {
@@ -169,9 +174,13 @@ export const myCrops = async (req, res) => {
     farmer: req.user._id,
   }).sort({ createdAt: -1 });
 
-  res.json({ items });
+  res.json({
+    items,
+  });
 };
 
+// A buyer can review only after this exact product is delivered.
+// A buyer can submit only one review per product.
 export const addReview = async (req, res) => {
   const crop = await Crop.findById(req.params.id);
 
@@ -181,22 +190,50 @@ export const addReview = async (req, res) => {
     });
   }
 
-  const review = await Review.findOneAndUpdate(
-    {
-      crop: crop._id,
-      buyer: req.user._id,
-    },
-    {
-      rating: req.body.rating,
-      comment: req.body.comment,
-    },
-    {
-      upsert: true,
-      new: true,
-      runValidators: true,
-    },
-  );
+  const rating = Number(req.body.rating);
 
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return res.status(400).json({
+      message: 'Please select a rating from 1 to 5 stars',
+    });
+  }
+
+  const deliveredOrder = await Order.exists({
+    buyer: req.user._id,
+    items: {
+      $elemMatch: {
+        crop: crop._id,
+        sellerStatus: 'delivered',
+      },
+    },
+  });
+
+  if (!deliveredOrder) {
+    return res.status(403).json({
+      message:
+        'You can review this product only after it has been delivered.',
+    });
+  }
+
+  const existingReview = await Review.findOne({
+    crop: crop._id,
+    buyer: req.user._id,
+  });
+
+  if (existingReview) {
+    return res.status(409).json({
+      message: 'You have already rated this product.',
+    });
+  }
+
+  const review = await Review.create({
+    crop: crop._id,
+    buyer: req.user._id,
+    rating,
+    comment: req.body.comment?.trim() || '',
+  });
+
+  // Calculate rating visible to all users.
   const stats = await Review.aggregate([
     {
       $match: {
@@ -223,5 +260,8 @@ export const addReview = async (req, res) => {
 
   await crop.save();
 
-  res.status(201).json({ review });
+  res.status(201).json({
+    message: 'Review submitted successfully.',
+    review,
+  });
 };

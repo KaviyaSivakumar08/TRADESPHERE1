@@ -38,15 +38,21 @@ app.use(
 
 app.use(morgan('dev'));
 
-app.use(
-  '/api',
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 300,
-    standardHeaders: true,
-    legacyHeaders: false,
-  })
-);
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+
+  // Strict limit only when deployed.
+  limit: process.env.NODE_ENV === 'production' ? 300 : 10000,
+
+  standardHeaders: true,
+  legacyHeaders: false,
+
+  message: {
+    message: 'Too many requests. Please try again later.',
+  },
+});
+
+app.use('/api', apiLimiter);
 
 app.get('/api/health', (req, res) => {
   res.json({

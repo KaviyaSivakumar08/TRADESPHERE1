@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Heart, MapPin } from 'lucide-react';
+import { Heart, MapPin, Star } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
 export default function CropCard({ crop }) {
@@ -7,6 +7,9 @@ export default function CropCard({ crop }) {
 
   const isAvailable =
     crop.status === 'active' && Number(crop.quantity) > 0;
+
+  const averageRating = Number(crop.rating?.average || 0);
+  const totalRatings = Number(crop.rating?.count || 0);
 
   const handleAddToCart = () => {
     if (!isAvailable) return;
@@ -54,6 +57,24 @@ export default function CropCard({ crop }) {
           · <MapPin className="inline" size={13} />
           {crop.location?.district || 'India'}
         </p>
+
+        {/* Public product rating */}
+        <div className="mb-3 flex items-center gap-1">
+          <Star
+            size={17}
+            className="text-yellow-500"
+            fill="currentColor"
+          />
+
+          <span className="text-sm font-semibold text-slate-700">
+            {averageRating.toFixed(1)}
+          </span>
+
+          <span className="text-sm text-slate-500">
+            ({totalRatings}{' '}
+            {totalRatings === 1 ? 'rating' : 'ratings'})
+          </span>
+        </div>
 
         <p className="mb-3 text-sm text-slate-500">
           Stock: {crop.quantity} {crop.unit}

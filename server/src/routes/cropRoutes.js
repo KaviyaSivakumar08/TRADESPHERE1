@@ -8,7 +8,6 @@ router.get('/', cropController.listCrops);
 
 router.get('/mine', protect, cropController.myCrops);
 
-// Every logged-in user can sell crops.
 router.post('/', protect, cropController.createCrop);
 
 router.get('/:id', cropController.getCrop);
@@ -17,6 +16,7 @@ router.patch('/:id', protect, cropController.updateCrop);
 
 router.delete('/:id', protect, cropController.deleteCrop);
 
+// Backend checks that this buyer received the product first.
 router.post('/:id/reviews', protect, cropController.addReview);
 
 export default router;

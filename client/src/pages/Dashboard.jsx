@@ -8,7 +8,21 @@ export default function Dashboard() {
 
   const [orders, setOrders] = useState([]);
   const [myProducts, setMyProducts] = useState([]);
+  const [reviewedCropIds, setReviewedCropIds] = useState([]);
   const [message, setMessage] = useState('');
+
+  const getId = (value) => {
+    if (!value) return '';
+    return (value._id || value).toString();
+  };
+
+  const isMyProduct = (item) => {
+    return getId(item.farmer) === user?.id?.toString();
+  };
+
+  const isMyOrder = (order) => {
+    return getId(order.buyer) === user?.id?.toString();
+  };
 
   const loadDashboard = async () => {
     try {
@@ -17,11 +31,52 @@ export default function Dashboard() {
         api.get('/crops/mine'),
       ]);
 
-      setOrders(ordersResponse.data.items || []);
-      setMyProducts(cropsResponse.data.items || []);
-    } catch (error) {
-      console.error(error);
+      const loadedOrders = ordersResponse.data.items || [];
 
+      setOrders(loadedOrders);
+      setMyProducts(cropsResponse.data.items || []);
+
+      // Find every delivered product bought by this logged-in user.
+      const deliveredCropIds = [];
+
+      loadedOrders
+        .filter((order) => isMyOrder(order))
+        .forEach((order) => {
+          order.items?.forEach((item) => {
+            if (item.sellerStatus === 'delivered') {
+              const cropId = getId(item.crop);
+
+              if (cropId && !deliveredCropIds.includes(cropId)) {
+                deliveredCropIds.push(cropId);
+              }
+            }
+          });
+        });
+
+      // Check if this buyer already reviewed each delivered product.
+      const reviewChecks = await Promise.allSettled(
+        deliveredCropIds.map((cropId) => api.get(`/crops/${cropId}`)),
+      );
+
+      const reviewedIds = [];
+
+      reviewChecks.forEach((result, index) => {
+        if (result.status !== 'fulfilled') return;
+
+        const cropId = deliveredCropIds[index];
+        const reviews = result.value.data.reviews || [];
+
+        const alreadyReviewed = reviews.some((review) => {
+          return getId(review.buyer) === user?.id?.toString();
+        });
+
+        if (alreadyReviewed) {
+          reviewedIds.push(cropId);
+        }
+      });
+
+      setReviewedCropIds(reviewedIds);
+    } catch (error) {
       setMessage(
         error.response?.data?.message || 'Could not load dashboard.',
       );
@@ -29,8 +84,10 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    loadDashboard();
-  }, []);
+    if (user?.id) {
+      loadDashboard();
+    }
+  }, [user?.id]);
 
   const changeSellerStatus = async (orderId, status) => {
     try {
@@ -49,9 +106,7 @@ export default function Dashboard() {
 
   const changeProductAvailability = async (productId, status) => {
     try {
-      await api.patch(`/crops/${productId}`, {
-        status,
-      });
+      await api.patch(`/crops/${productId}`, { status });
 
       setMessage(
         status === 'active'
@@ -76,7 +131,6 @@ export default function Dashboard() {
 
     try {
       await api.delete(`/crops/${productId}`);
-
       setMessage('Product deleted successfully.');
       loadDashboard();
     } catch (error) {
@@ -84,18 +138,6 @@ export default function Dashboard() {
         error.response?.data?.message || 'Could not delete product.',
       );
     }
-  };
-
-  const isMyProduct = (item) => {
-    const farmerId = item.farmer?._id || item.farmer;
-
-    return farmerId?.toString() === user?.id?.toString();
-  };
-
-  const isMyOrder = (order) => {
-    const buyerId = order.buyer?._id || order.buyer;
-
-    return buyerId?.toString() === user?.id?.toString();
   };
 
   const buyingOrders = orders.filter((order) => isMyOrder(order));
@@ -134,7 +176,6 @@ export default function Dashboard() {
         </p>
       )}
 
-      {/* PRODUCTS LISTED BY THIS USER */}
       <h2 className="mt-10 text-2xl font-bold">My Products</h2>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -223,7 +264,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* PRODUCTS BOUGHT BY THIS USER */}
       <h2 className="mt-10 text-2xl font-bold">Products I Bought</h2>
 
       <div className="mt-4 space-y-4">
@@ -234,26 +274,49 @@ export default function Dashboard() {
             </h3>
 
             <div className="mt-3 space-y-3 border-t pt-3">
-              {order.items?.map((item, index) => (
-                <div key={`${item.crop}-${index}`}>
-                  <p className="font-semibold">{item.name}</p>
+              {order.items?.map((item, index) => {
+                const cropId = getId(item.crop);
+                const alreadyReviewed =
+                  reviewedCropIds.includes(cropId);
 
-                  <p className="text-sm text-slate-500">
-                    Seller:{' '}
-                    {item.farmer?.farmName ||
-                      item.farmer?.name ||
-                      'Farmer'}
-                  </p>
+                return (
+                  <div key={`${cropId}-${index}`}>
+                    <p className="font-semibold">{item.name}</p>
 
-                  <p className="text-sm text-slate-500">
-                    Quantity: {item.quantity} {item.unit}
-                  </p>
+                    <p className="text-sm text-slate-500">
+                      Seller:{' '}
+                      {item.farmer?.farmName ||
+                        item.farmer?.name ||
+                        'Farmer'}
+                    </p>
 
-                  <p className="font-semibold capitalize text-forest">
-                    Seller status: {item.sellerStatus || 'pending'}
-                  </p>
-                </div>
-              ))}
+                    <p className="text-sm text-slate-500">
+                      Quantity: {item.quantity} {item.unit}
+                    </p>
+
+                    <p className="font-semibold capitalize text-forest">
+                      Seller status: {item.sellerStatus || 'pending'}
+                    </p>
+
+                    {item.sellerStatus === 'delivered' &&
+                      (alreadyReviewed ? (
+                        <button
+                          className="btn mt-3 cursor-not-allowed bg-slate-300 text-slate-600"
+                          disabled
+                        >
+                          Already Rated
+                        </button>
+                      ) : (
+                        <Link
+                          className="btn-primary mt-3"
+                          to={`/crops/${cropId}`}
+                        >
+                          Rate & Review Product
+                        </Link>
+                      ))}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
@@ -265,7 +328,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* PRODUCTS SOLD BY THIS USER */}
       <h2 className="mt-10 text-2xl font-bold">Products I Sold</h2>
 
       <div className="mt-4 space-y-4">
@@ -301,7 +363,7 @@ export default function Dashboard() {
                 .map((item, index) => (
                   <div
                     className="flex flex-wrap items-center justify-between gap-4"
-                    key={`${item.crop}-${index}`}
+                    key={`${getId(item.crop)}-${index}`}
                   >
                     <div>
                       <p className="font-bold">{item.name}</p>

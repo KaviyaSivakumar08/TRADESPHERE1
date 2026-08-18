@@ -6,9 +6,10 @@ export default function Marketplace() {
   const [data, setData] = useState({ items: [] });
 
   const [filters, setFilters] = useState({
-    q: '',
-    category: '',
-    sort: 'newest',
+  q: '',
+  category: '',
+  sort: 'newest',
+  limit: 100,
   });
 
   const [loading, setLoading] = useState(true);
