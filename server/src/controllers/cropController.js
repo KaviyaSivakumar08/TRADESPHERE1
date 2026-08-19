@@ -56,11 +56,26 @@ export const listCrops = async (req, res) => {
   }
 
   const order =
-    {
-      newest: { createdAt: -1 },
-      price_asc: { price: 1 },
-      price_desc: { price: -1 },
-    }[sort] || { createdAt: -1 };
+  {
+    newest: { createdAt: -1 },
+
+    // Highest average star rating first.
+    rating_desc: {
+      'rating.average': -1,
+      'rating.count': -1,
+      createdAt: -1,
+    },
+
+    // Products with the highest number of ratings first.
+    popular: {
+      'rating.count': -1,
+      'rating.average': -1,
+      createdAt: -1,
+    },
+
+    price_asc: { price: 1 },
+    price_desc: { price: -1 },
+  }[sort] || { createdAt: -1 };
 
   const currentPage = Number(page);
   const pageLimit = Number(limit);
