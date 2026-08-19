@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Heart, MapPin, Star } from 'lucide-react';
+import { MapPin, Star } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
 export default function CropCard({ crop }) {
@@ -47,7 +47,7 @@ export default function CropCard({ crop }) {
             {crop.name}
           </Link>
 
-          <Heart size={18} className="shrink-0 text-slate-400" />
+          
         </div>
 
         <p className="mb-2 text-sm text-slate-500">
