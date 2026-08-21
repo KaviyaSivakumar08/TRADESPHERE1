@@ -1,4 +1,5 @@
 import express from 'express';
+app.set("trust proxy", 1);
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -19,6 +20,8 @@ import {
 } from './middleware/errors.js';
 
 const app = express();
+
+app.set("trust proxy", 1);
 
 app.use(helmet());
 
