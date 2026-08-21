@@ -20,19 +20,38 @@ import {
 
 const app = express();
 
-// Trust Render's reverse proxy
+// Render reverse proxy
 app.set('trust proxy', 1);
 
-app.use(helmet());
+// Allowed frontend URLs
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://tradesphere-frontend-black.vercel.app',
+];
 
+// CORS
 app.use(
   cors({
-    origin: process.env.CLIENT_URL
-      ? process.env.CLIENT_URL.split(',').map((url) => url.trim())
-      : 'http://localhost:5173',
+    origin: function (origin, callback) {
+      // Allow requests with no origin
+      // such as server-to-server requests
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
+
+app.use(helmet());
 
 app.use(
   express.json({
@@ -44,10 +63,7 @@ app.use(morgan('dev'));
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-
-  // Strict limit only when deployed.
   limit: process.env.NODE_ENV === 'production' ? 300 : 10000,
-
   standardHeaders: true,
   legacyHeaders: false,
 
@@ -65,7 +81,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Routes
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/crops', cropRoutes);
 app.use('/api/orders', orderRoutes);
