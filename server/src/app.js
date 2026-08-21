@@ -4,8 +4,6 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 
-import './middleware/errors.js';
-
 import authRoutes from './routes/authRoutes.js';
 import cropRoutes from './routes/cropRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
@@ -20,33 +18,28 @@ import {
 
 const app = express();
 
-app.use(helmet());
+// Render proxy
+app.set('trust proxy', 1);
 
+// CORS
 app.use(
   cors({
-    origin:
-      process.env.CLIENT_URL?.split(',') ||
-      'http://localhost:5173',
+    origin: 'https://tradesphere-frontend-black.vercel.app',
+    credentials: true,
   })
 );
 
-app.use(
-  express.json({
-    limit: '1mb',
-  })
-);
+app.use(helmet());
+
+app.use(express.json({ limit: '1mb' }));
 
 app.use(morgan('dev'));
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-
-  // Strict limit only when deployed.
   limit: process.env.NODE_ENV === 'production' ? 300 : 10000,
-
   standardHeaders: true,
   legacyHeaders: false,
-
   message: {
     message: 'Too many requests. Please try again later.',
   },
@@ -54,12 +47,14 @@ const apiLimiter = rateLimit({
 
 app.use('/api', apiLimiter);
 
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
   });
 });
 
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/crops', cropRoutes);
 app.use('/api/orders', orderRoutes);
@@ -67,6 +62,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+// Error handling
 app.use(notFound);
 app.use(errorHandler);
 
