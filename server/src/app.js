@@ -1,5 +1,4 @@
 import express from 'express';
-app.set("trust proxy", 1);
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -21,15 +20,17 @@ import {
 
 const app = express();
 
-app.set("trust proxy", 1);
+// Trust Render's reverse proxy
+app.set('trust proxy', 1);
 
 app.use(helmet());
 
 app.use(
   cors({
-    origin:
-      process.env.CLIENT_URL?.split(',') ||
-      'http://localhost:5173',
+    origin: process.env.CLIENT_URL
+      ? process.env.CLIENT_URL.split(',').map((url) => url.trim())
+      : 'http://localhost:5173',
+    credentials: true,
   })
 );
 
@@ -57,12 +58,14 @@ const apiLimiter = rateLimit({
 
 app.use('/api', apiLimiter);
 
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
   });
 });
 
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/crops', cropRoutes);
 app.use('/api/orders', orderRoutes);
@@ -70,6 +73,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+// Error handling
 app.use(notFound);
 app.use(errorHandler);
 
