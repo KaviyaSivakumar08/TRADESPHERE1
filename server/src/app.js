@@ -22,12 +22,10 @@ const app = express();
 app.set('trust proxy', 1);
 
 // CORS
-app.use(
-  cors({
-    origin: 'https://tradesphere-frontend-black.vercel.app',
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: "https://tradesphere-1-theta.vercel.app",
+  credentials: true
+}));
 
 app.use(helmet());
 
